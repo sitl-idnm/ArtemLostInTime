@@ -15,32 +15,6 @@ console.log("------------------------------------");
 const app = express();
 // const PORT = process.env.PORT || 3001; // <<< PORT больше не нужен, Vercel управляет этим
 // const DATA_FILE = path.join(__dirname, 'data.json'); // <<< Больше не используем файл
-const ALLOWED_IPS = [
-  '178.218.117.70', // Основной IP
-  '127.0.0.1',      // localhost IPv4
-  '::ffff:127.0.0.1', // localhost IPv6 mapped IPv4
-  '::1'             // localhost IPv6
-];
-
-// --- Настройка Basic Auth ---
-// Читаем из переменных окружения Vercel (или используем дефолтные для локальной разработки)
-// const adminUsername = process.env.ADMIN_USER || 'admin';
-// const adminPassword = process.env.ADMIN_PASSWORD || 'password';
-// const adminUser = { [adminUsername]: adminPassword };
-
-// const unauthorizedResponse = (req) => {
-//     return req.auth
-//         ? ('Credentials ' + req.auth.user + ':' + req.auth.password + ' rejected')
-//         : 'No credentials provided';
-// };
-
-// const adminAuth = basicAuth({
-//     users: adminUser,
-//     challenge: true, // Показывать стандартное окно входа в браузере
-//     unauthorizedResponse: unauthorizedResponse
-// });
-// --- Конец настройки Basic Auth ---
-
 
 // Middleware
 // Настройка CORS - разрешить запросы с твоего основного сайта
