@@ -1,9 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 // const bodyParser = require('body-parser'); // Необязательно для новых Express
-const path = require('path');
-const basicAuth = require('express-basic-auth'); // Добавили basic-auth
-const { kv } = require('@vercel/kv'); // <<< Добавили Vercel KV
+// const path = require('path'); // <<< Убрали path
+// const basicAuth = require('express-basic-auth'); // <<< Убрали basic-auth
+// const { kv } = require('@vercel/kv'); // <<< Убрали @vercel/kv
+const { Redis } = require('@upstash/redis'); // <<< Добавили @upstash/redis
 
 const app = express();
 // const PORT = process.env.PORT || 3001; // <<< PORT больше не нужен, Vercel управляет этим
@@ -17,21 +18,21 @@ const ALLOWED_IPS = [
 
 // --- Настройка Basic Auth ---
 // Читаем из переменных окружения Vercel (или используем дефолтные для локальной разработки)
-const adminUsername = process.env.ADMIN_USER || 'admin';
-const adminPassword = process.env.ADMIN_PASSWORD || 'password';
-const adminUser = { [adminUsername]: adminPassword };
+// const adminUsername = process.env.ADMIN_USER || 'admin';
+// const adminPassword = process.env.ADMIN_PASSWORD || 'password';
+// const adminUser = { [adminUsername]: adminPassword };
 
-const unauthorizedResponse = (req) => {
-    return req.auth
-        ? ('Credentials ' + req.auth.user + ':' + req.auth.password + ' rejected')
-        : 'No credentials provided';
-};
+// const unauthorizedResponse = (req) => {
+//     return req.auth
+//         ? ('Credentials ' + req.auth.user + ':' + req.auth.password + ' rejected')
+//         : 'No credentials provided';
+// };
 
-const adminAuth = basicAuth({
-    users: adminUser,
-    challenge: true, // Показывать стандартное окно входа в браузере
-    unauthorizedResponse: unauthorizedResponse
-});
+// const adminAuth = basicAuth({
+//     users: adminUser,
+//     challenge: true, // Показывать стандартное окно входа в браузере
+//     unauthorizedResponse: unauthorizedResponse
+// });
 // --- Конец настройки Basic Auth ---
 
 
@@ -49,37 +50,51 @@ app.use(express.json()); // Для парсинга JSON тел запросов
 
 // Middleware для Basic Auth - ПРИМЕНЯЕМ ТОЛЬКО К /admin.html
 // Все остальные файлы будут доступны без аутентификации
-app.get('/admin.html', adminAuth, (req, res) => {
-  // Если adminAuth пропустил (успешная аутентификация), отправляем файл
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
+// app.get('/admin.html', adminAuth, (req, res) => {
+//   // Если adminAuth пропустил (успешная аутентификация), отправляем файл
+//   res.sendFile(path.join(__dirname, 'admin.html'));
+// });
 
 // <<< ДОБАВЛЯЕМ Обработчик для корневого пути /
-app.get('/', adminAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
+// app.get('/', adminAuth, (req, res) => {
+//   res.sendFile(path.join(__dirname, 'admin.html'));
+// });
 
-// --- Функции для работы с Vercel KV ---
-const ENTRIES_KEY = 'entries'; // Ключ для хранения данных в KV
+// --- Инициализация Upstash Redis ---
+// Ожидает UPSTASH_REDIS_REST_URL и UPSTASH_REDIS_REST_TOKEN в переменных окружения
+const redis = Redis.fromEnv();
+const ENTRIES_KEY = 'entries'; // Ключ для хранения данных
+// ------------------------------------
 
-// Чтение данных из KV
-async function readDataFromKV() {
+// --- Функции для работы с Upstash Redis ---
+
+// Чтение данных из Redis
+async function readDataFromRedis() {
   try {
-    const data = await kv.get(ENTRIES_KEY);
-    return data || []; // Возвращаем пустой массив, если данных нет
+    const dataString = await redis.get(ENTRIES_KEY);
+    // Данные в Redis хранятся как строка, парсим JSON
+    if (dataString) {
+      return JSON.parse(dataString);
+    }
+    return []; // Возвращаем пустой массив, если данных нет
   } catch (error) {
-    console.error("Error reading from Vercel KV:", error);
-    throw new Error('Could not read data from storage'); // Передаем ошибку дальше
+    console.error("!!! Catch block entered for readDataFromRedis");
+    console.error("Error object keys (Redis Read):", Object.keys(error || {}));
+    console.error("Full error object stringified (Redis Read):", JSON.stringify(error, null, 2));
+    throw new Error('Could not read data from Redis storage');
   }
 }
 
-// Запись данных в KV
-async function writeDataToKV(data) {
+// Запись данных в Redis
+async function writeDataToRedis(data) {
   try {
-    await kv.set(ENTRIES_KEY, data);
+    // Преобразуем массив в JSON строку перед сохранением
+    await redis.set(ENTRIES_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error("Error writing to Vercel KV:", error);
-    throw new Error('Could not write data to storage');
+    console.error("!!! Catch block entered for writeDataToRedis");
+    console.error("Error object keys (Redis Write):", Object.keys(error || {}));
+    console.error("Full error object stringified (Redis Write):", JSON.stringify(error, null, 2));
+    throw new Error('Could not write data to Redis storage');
   }
 }
 
@@ -88,13 +103,13 @@ async function writeDataToKV(data) {
 // GET /entries - Получить все записи
 app.get('/entries', async (req, res) => {
   try {
-    const data = await readDataFromKV();
+    const data = await readDataFromRedis();
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
     res.json(sortedData);
   } catch (error) {
     console.error("!!! Catch block entered for GET /entries");
-    console.error("Error object keys (GET):", Object.keys(error || {})); // <<< Логируем ключи
-    console.error("Full error object stringified (GET):", JSON.stringify(error, null, 2)); // <<< Логируем JSON
+    console.error("Error object keys (GET):", Object.keys(error || {}));
+    console.error("Full error object stringified (GET):", JSON.stringify(error, null, 2));
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("!!! ERROR in GET /entries: Sending 500 -", errorMessage);
     res.status(500).json({ message: "Could not read data from storage", details: errorMessage, originalError: error });
@@ -114,7 +129,7 @@ app.post('/entries', async (req, res) => {
           return res.status(400).send('Invalid departureTime format...');
       }
 
-      const data = await readDataFromKV();
+      const data = await readDataFromRedis();
       const newEntry = {
         id: Date.now().toString(),
         departureTime: departureDate.toISOString(),
@@ -123,13 +138,13 @@ app.post('/entries', async (req, res) => {
         lateBy: null,
       };
       data.push(newEntry);
-      await writeDataToKV(data);
+      await writeDataToRedis(data);
       res.status(201).json(newEntry);
 
   } catch (error) {
       console.error("!!! Catch block entered for POST /entries");
-      console.error("Error object keys (POST):", Object.keys(error || {})); // <<< Логируем ключи
-      console.error("Full error object stringified (POST):", JSON.stringify(error, null, 2)); // <<< Логируем JSON
+      console.error("Error object keys (POST):", Object.keys(error || {}));
+      console.error("Full error object stringified (POST):", JSON.stringify(error, null, 2));
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("!!! ERROR in POST /entries: Sending 500 -", errorMessage);
       res.status(500).json({ message: "Could not write data to storage", details: errorMessage, originalError: error });
@@ -151,7 +166,7 @@ app.put('/entries/:id', async (req, res) => {
           return res.status(400).send('Invalid returnTime format...');
       }
 
-      const data = await readDataFromKV();
+      const data = await readDataFromRedis();
       const entryIndex = data.findIndex(entry => entry.id === id);
 
       if (entryIndex === -1) {
@@ -174,14 +189,14 @@ app.put('/entries/:id', async (req, res) => {
       entry.lateBy = Math.max(0, Math.round(diffMillis / 60000));
 
       data[entryIndex] = entry;
-      await writeDataToKV(data);
+      await writeDataToRedis(data);
       res.json(entry);
 
   } catch (error) {
       const entryId = req.params.id;
       console.error(`!!! Catch block entered for PUT /entries/${entryId}`);
-      console.error(`Error object keys (PUT ${entryId}):`, Object.keys(error || {})); // <<< Логируем ключи
-      console.error(`Full error object stringified (PUT ${entryId}):`, JSON.stringify(error, null, 2)); // <<< Логируем JSON
+      console.error(`Error object keys (PUT ${entryId}):`, Object.keys(error || {}));
+      console.error(`Full error object stringified (PUT ${entryId}):`, JSON.stringify(error, null, 2));
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`!!! ERROR in PUT /entries/${entryId}: Sending 500 -`, errorMessage);
       res.status(500).json({ message: `Could not update entry ${entryId}`, details: errorMessage, originalError: error });
