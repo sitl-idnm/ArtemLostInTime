@@ -81,19 +81,20 @@ async function writeDataToKV(data) {
 // --- Маршруты API (Эндпоинты) ---
 
 // GET /entries - Получить все записи
-app.get('/entries', async (req, res) => { // <<< Делаем async
+app.get('/entries', async (req, res) => {
   try {
-    const data = await readDataFromKV(); // <<< Читаем из KV
+    const data = await readDataFromKV();
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
     res.json(sortedData);
   } catch (error) {
-    console.error("Error in GET /entries:", error);
-    res.status(500).send(error.message || "Internal Server Error");
+    const errorMessage = error.message || "Internal Server Error";
+    console.error("!!! ERROR in GET /entries: Sending 500 -", errorMessage);
+    res.status(500).send(errorMessage);
   }
 });
 
 // POST /entries - Добавить новую запись
-app.post('/entries', async (req, res) => { // <<< Делаем async
+app.post('/entries', async (req, res) => {
   const { departureTime, estimatedDuration } = req.body;
   if (!departureTime || typeof estimatedDuration !== 'number' || estimatedDuration <= 0) {
     return res.status(400).send('Invalid input...'); // Сообщение можно оставить
@@ -105,7 +106,7 @@ app.post('/entries', async (req, res) => { // <<< Делаем async
           return res.status(400).send('Invalid departureTime format...');
       }
 
-      const data = await readDataFromKV(); // <<< Читаем из KV
+      const data = await readDataFromKV();
       const newEntry = {
         id: Date.now().toString(),
         departureTime: departureDate.toISOString(),
@@ -114,17 +115,18 @@ app.post('/entries', async (req, res) => { // <<< Делаем async
         lateBy: null,
       };
       data.push(newEntry);
-      await writeDataToKV(data); // <<< Пишем в KV
+      await writeDataToKV(data);
       res.status(201).json(newEntry);
 
   } catch (error) {
-      console.error("Error processing POST /entries:", error);
-      res.status(500).send(error.message || "Internal Server Error");
+      const errorMessage = error.message || "Internal Server Error";
+      console.error("!!! ERROR in POST /entries: Sending 500 -", errorMessage);
+      res.status(500).send(errorMessage);
   }
 });
 
 // PUT /entries/:id - Обновить запись (приход)
-app.put('/entries/:id', async (req, res) => { // <<< Делаем async
+app.put('/entries/:id', async (req, res) => {
   const { id } = req.params;
   const { returnTime } = req.body;
 
@@ -138,7 +140,7 @@ app.put('/entries/:id', async (req, res) => { // <<< Делаем async
           return res.status(400).send('Invalid returnTime format...');
       }
 
-      const data = await readDataFromKV(); // <<< Читаем из KV
+      const data = await readDataFromKV();
       const entryIndex = data.findIndex(entry => entry.id === id);
 
       if (entryIndex === -1) {
@@ -161,12 +163,13 @@ app.put('/entries/:id', async (req, res) => { // <<< Делаем async
       entry.lateBy = Math.max(0, Math.round(diffMillis / 60000));
 
       data[entryIndex] = entry;
-      await writeDataToKV(data); // <<< Пишем в KV
+      await writeDataToKV(data);
       res.json(entry);
 
   } catch (error) {
-      console.error(`Error processing PUT /entries/${id}:`, error);
-      res.status(500).send(error.message || "Internal Server Error");
+      const errorMessage = error.message || "Internal Server Error";
+      console.error(`!!! ERROR in PUT /entries/${id}: Sending 500 -`, errorMessage);
+      res.status(500).send(errorMessage);
   }
 });
 
