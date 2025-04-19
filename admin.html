@@ -210,8 +210,17 @@
 				}
 			} catch (error) {
 				console.error('Ошибка при загрузке записей:', error);
-				entriesTbody.innerHTML = ''; // Очистить таблицу в случае ошибки
-				listMessage.textContent = `Не удалось загрузить записи: ${error.message}. Убедитесь, что API сервер запущен (${API_URL}).`;
+				entriesTbody.innerHTML = '';
+				let errorDetails = error.message;
+				if (error instanceof Response) {
+					try {
+						const errorData = await error.json();
+						errorDetails = `${error.statusText}: ${errorData.message} - ${errorData.details || 'No details'}`;
+					} catch (e) {
+						errorDetails = `${error.statusText || 'Unknown HTTP error'}`;
+					}
+				}
+				listMessage.textContent = `Не удалось загрузить записи: ${errorDetails}. Убедитесь, что API сервер запущен и доступен.`;
 			}
 		}
 
@@ -252,7 +261,16 @@
 
 			} catch (error) {
 				console.error('Ошибка при добавлении записи:', error);
-				formMessage.textContent = `Ошибка: ${error.message}`;
+				let errorDetails = error.message;
+				if (error instanceof Response) {
+					try {
+						const errorData = await error.json();
+						errorDetails = `${error.statusText}: ${errorData.message} - ${errorData.details || 'No details'}`;
+					} catch (e) {
+						errorDetails = `${error.statusText || 'Unknown HTTP error'}`;
+					}
+				}
+				formMessage.textContent = `Ошибка: ${errorDetails}`;
 				formMessage.className = 'error-message';
 			}
 		});
@@ -286,8 +304,17 @@
 
 				} catch (error) {
 					console.error('Ошибка при обновлении записи:', error);
-					listMessage.textContent = `Ошибка обновления записи ID ${entryId}: ${error.message}`;
-					button.disabled = false; // Включить кнопку обратно в случае ошибки
+					let errorDetails = error.message;
+					if (error instanceof Response) {
+						try {
+							const errorData = await error.json();
+							errorDetails = `${error.statusText}: ${errorData.message} - ${errorData.details || 'No details'}`;
+						} catch (e) {
+							errorDetails = `${error.statusText || 'Unknown HTTP error'}`;
+						}
+					}
+					listMessage.textContent = `Ошибка обновления записи ID ${entryId}: ${errorDetails}`;
+					button.disabled = false;
 					button.textContent = 'Пришел';
 				}
 			}

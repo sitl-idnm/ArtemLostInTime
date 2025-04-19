@@ -87,10 +87,16 @@ app.get('/entries', async (req, res) => {
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
     res.json(sortedData);
   } catch (error) {
-    console.error("!!! Catch block entered for GET /entries"); // <<< Самый первый лог
-    const errorMessage = error.message || "Internal Server Error";
+    console.error("!!! Catch block entered for GET /entries");
+    console.error("Full error object (GET /entries):", error); // <<< Логируем весь объект ошибки
+    const errorMessage = error.message || "Unknown error reading data";
     console.error("!!! ERROR in GET /entries: Sending 500 -", errorMessage);
-    res.status(500).send(errorMessage);
+    // <<< Отправляем более детальную ошибку
+    res.status(500).json({
+      message: "Could not read data from storage",
+      details: errorMessage,
+      originalError: error // Включаем детали, если это безопасно/нужно для отладки
+    });
   }
 });
 
@@ -120,10 +126,16 @@ app.post('/entries', async (req, res) => {
       res.status(201).json(newEntry);
 
   } catch (error) {
-      console.error("!!! Catch block entered for POST /entries"); // <<< Самый первый лог
-      const errorMessage = error.message || "Internal Server Error";
+      console.error("!!! Catch block entered for POST /entries");
+      console.error("Full error object (POST /entries):", error); // <<< Логируем весь объект ошибки
+      const errorMessage = error.message || "Unknown error writing data";
       console.error("!!! ERROR in POST /entries: Sending 500 -", errorMessage);
-      res.status(500).send(errorMessage);
+      // <<< Отправляем более детальную ошибку
+      res.status(500).json({
+        message: "Could not write data to storage",
+        details: errorMessage,
+        originalError: error
+      });
   }
 });
 
@@ -169,10 +181,17 @@ app.put('/entries/:id', async (req, res) => {
       res.json(entry);
 
   } catch (error) {
-      console.error(`!!! Catch block entered for PUT /entries/${req.params.id}`); // <<< Самый первый лог
-      const errorMessage = error.message || "Internal Server Error";
-      console.error(`!!! ERROR in PUT /entries/${req.params.id}: Sending 500 -`, errorMessage);
-      res.status(500).send(errorMessage);
+      const entryId = req.params.id;
+      console.error(`!!! Catch block entered for PUT /entries/${entryId}`);
+      console.error(`Full error object (PUT /entries/${entryId}):`, error); // <<< Логируем весь объект ошибки
+      const errorMessage = error.message || "Unknown error updating data";
+      console.error(`!!! ERROR in PUT /entries/${entryId}: Sending 500 -`, errorMessage);
+      // <<< Отправляем более детальную ошибку
+      res.status(500).json({
+        message: `Could not update entry ${entryId}`,
+        details: errorMessage,
+        originalError: error
+      });
   }
 });
 
