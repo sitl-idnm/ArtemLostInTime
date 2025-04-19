@@ -87,6 +87,7 @@ app.get('/entries', async (req, res) => {
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
     res.json(sortedData);
   } catch (error) {
+    console.error("!!! Catch block entered for GET /entries"); // <<< Самый первый лог
     const errorMessage = error.message || "Internal Server Error";
     console.error("!!! ERROR in GET /entries: Sending 500 -", errorMessage);
     res.status(500).send(errorMessage);
@@ -119,6 +120,7 @@ app.post('/entries', async (req, res) => {
       res.status(201).json(newEntry);
 
   } catch (error) {
+      console.error("!!! Catch block entered for POST /entries"); // <<< Самый первый лог
       const errorMessage = error.message || "Internal Server Error";
       console.error("!!! ERROR in POST /entries: Sending 500 -", errorMessage);
       res.status(500).send(errorMessage);
@@ -167,8 +169,9 @@ app.put('/entries/:id', async (req, res) => {
       res.json(entry);
 
   } catch (error) {
+      console.error(`!!! Catch block entered for PUT /entries/${req.params.id}`); // <<< Самый первый лог
       const errorMessage = error.message || "Internal Server Error";
-      console.error(`!!! ERROR in PUT /entries/${id}: Sending 500 -`, errorMessage);
+      console.error(`!!! ERROR in PUT /entries/${req.params.id}: Sending 500 -`, errorMessage);
       res.status(500).send(errorMessage);
   }
 });
