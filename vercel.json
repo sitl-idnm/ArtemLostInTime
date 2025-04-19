@@ -8,16 +8,12 @@
 	],
 	"routes": [
 		{
-			"src": "/entries(.*)",
+			"src": "/entries/(.*)",
 			"dest": "/server.js"
 		},
 		{
-			"src": "/admin.html",
-			"dest": "/admin.html"
-		},
-		{
-			"src": "/",
-			"dest": "/admin.html"
+			"src": "/(.*)",
+			"dest": "/server.js"
 		}
 	]
 }

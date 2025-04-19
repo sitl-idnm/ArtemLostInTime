@@ -167,14 +167,9 @@ app.put('/entries/:id', async (req, res) => { // <<< Делаем async
   }
 });
 
-// --- УБИРАЕМ ЗАПУСК СЕРВЕРА ---
-/*
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
-  console.log(`Data will be stored in: ${DATA_FILE}`);
-  console.log(`Admin page at http://localhost:${PORT}/admin.html (Login: admin/password)`);
-});
-*/
+// --- Статические файлы ---
+// <<< ВОЗВРАЩАЕМ express.static ПОСЛЕ API-маршрутов
+app.use(express.static(__dirname));
 
 // --- ЭКСПОРТИРУЕМ ПРИЛОЖЕНИЕ ДЛЯ VERCEL ---
 module.exports = app;
