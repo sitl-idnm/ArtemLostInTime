@@ -72,6 +72,21 @@ async function writeDataToRedis(data) {
 
 // --- Обработчик API запросов ---
 export default async function handler(req, res) {
+  // --- CORS Headers ---
+  // Разрешаем запросы с любого origin (*)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Разрешаем методы GET, POST, PUT и OPTIONS (для preflight)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  // Разрешаем заголовки, включая Content-Type, который нужен для POST/PUT
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Обработка Preflight запроса (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    // Просто отвечаем 204 No Content, заголовки уже установлены выше
+    return res.status(204).end();
+  }
+  // ------------------
+
   // Проверяем инициализацию Redis при каждом запросе
   if (!redis) {
     return res.status(500).json({ message: "API Route: Redis client not initialized. Check env vars." });
