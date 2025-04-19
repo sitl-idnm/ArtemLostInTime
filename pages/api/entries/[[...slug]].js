@@ -20,15 +20,39 @@ async function readDataFromRedis() {
   if (!redis) throw new Error('API Route: Redis client not initialized');
   try {
     console.log("--- API Route: Attempting redis.get for key:", ENTRIES_KEY);
-    const dataString = await redis.get(ENTRIES_KEY);
-    console.log("--- API Route: Successfully executed redis.get. Raw dataString:", dataString);
-    if (dataString) {
-      return JSON.parse(dataString);
+    const rawData = await redis.get(ENTRIES_KEY); // Changed variable name for clarity
+    console.log("--- API Route: Successfully executed redis.get. Type:", typeof rawData, " Raw data:", rawData); // Log type and raw data
+
+    if (rawData) {
+      // Check if it's already an object/array (maybe the client auto-parses?)
+      if (typeof rawData === 'object') {
+         console.log("--- API Route: Data from redis.get is already an object. Returning directly.");
+         return rawData; // Return directly if it's already parsed
+      }
+      // If it's a string, try to parse it
+      if (typeof rawData === 'string') {
+        console.log("--- API Route: Data from redis.get is a string. Parsing...");
+        try {
+            return JSON.parse(rawData);
+        } catch (parseError) {
+            console.error("!!! API Route: JSON.parse FAILED on string data:", parseError, " String was:", rawData);
+            throw new Error('API Route: Failed to parse data from Redis storage');
+        }
+      }
+       // Handle unexpected types
+       console.warn("--- API Route: Unexpected data type received from redis.get:", typeof rawData);
+       throw new Error('API Route: Unexpected data type from Redis');
     }
-    return [];
+    console.log("--- API Route: No data found for key. Returning empty array.");
+    return []; // Return empty array if no data
   } catch (error) {
-    console.error("!!! API Route: RAW ERROR in readDataFromRedis:", error);
-    throw new Error('API Route: Could not read data from Redis storage');
+    // Catch errors from redis.get itself or re-throw errors from parsing/type checks
+    console.error("!!! API Route: ERROR in readDataFromRedis:", error);
+    // Make the error message more specific if possible
+    if (error.message.includes('parse data') || error.message.includes('Unexpected data type')) {
+         throw error; // Re-throw the specific error
+    }
+    throw new Error(`API Route: Could not read/process data from Redis storage - ${error.message}`);
   }
 }
 
@@ -37,7 +61,7 @@ async function writeDataToRedis(data) {
   if (!redis) throw new Error('API Route: Redis client not initialized');
   try {
     const dataToSet = JSON.stringify(data);
-    console.log("--- API Route: Attempting redis.set for key:", ENTRIES_KEY);
+    console.log("--- API Route: Attempting redis.set for key:", ENTRIES_KEY, " Data to set:", dataToSet); // Log data being set
     await redis.set(ENTRIES_KEY, dataToSet);
     console.log("--- API Route: Successfully executed redis.set");
   } catch (error) {
