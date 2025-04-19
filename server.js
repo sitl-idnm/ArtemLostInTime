@@ -6,11 +6,14 @@ const path = require('path'); // <<< ВОЗВРАЩАЕМ path
 // const { kv } = require('@vercel/kv'); // <<< Убрали @vercel/kv
 const { Redis } = require('@upstash/redis'); // <<< Добавили @upstash/redis
 
-// <<< ЛОГИРУЕМ ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ >>>
-console.log("--- Checking Environment Variables ---");
+// <<< ЛОГИРУЕМ ВСЕ ПОТЕНЦИАЛЬНЫЕ ПЕРЕМЕННЫЕ >>>
+console.log("--- Checking Environment Variables (Upstash/KV) ---");
 console.log("UPSTASH_REDIS_REST_URL exists:", !!process.env.UPSTASH_REDIS_REST_URL);
 console.log("UPSTASH_REDIS_REST_TOKEN exists:", !!process.env.UPSTASH_REDIS_REST_TOKEN);
-console.log("------------------------------------");
+console.log("KV_URL exists:", !!process.env.KV_URL); // Добавили проверку KV
+console.log("KV_REST_API_URL exists:", !!process.env.KV_REST_API_URL); // Добавили проверку KV
+console.log("KV_REST_API_TOKEN exists:", !!process.env.KV_REST_API_TOKEN); // Добавили проверку KV
+console.log("-------------------------------------------------");
 
 const app = express();
 // const PORT = process.env.PORT || 3001; // <<< PORT больше не нужен, Vercel управляет этим
@@ -38,17 +41,37 @@ app.use(express.json()); // Для парсинга JSON тел запросов
 // --- Обработчики для статики (без аутентификации) ---
 // Обработчик для корневого пути /
 app.get('/', (req, res) => {
+  // Добавим проверку, инициализирован ли redis
+  if (!redis) {
+      return res.status(500).send("Redis client not initialized due to missing environment variables.");
+  }
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // <<< Добавляем обработчик для /admin.html
 app.get('/admin.html', (req, res) => {
+  if (!redis) {
+      return res.status(500).send("Redis client not initialized due to missing environment variables.");
+  }
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // --- Инициализация Upstash Redis ---
 // Ожидает UPSTASH_REDIS_REST_URL и UPSTASH_REDIS_REST_TOKEN в переменных окружения
-const redis = Redis.fromEnv();
+let redis;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  console.log("--- Redis client initialized EXPLICITLY --- ");
+} else {
+  console.error("!!! CRITICAL ERROR: Missing Upstash Redis environment variables! Cannot initialize client.");
+  // Можно либо бросить ошибку, либо создать "пустышку", чтобы приложение не упало сразу,
+  // но все запросы к Redis будут фейлиться.
+  // Пока оставим redis = undefined, чтобы увидеть ошибки ниже.
+}
+
 const ENTRIES_KEY = 'entries'; // Ключ для хранения данных
 // ------------------------------------
 
@@ -56,6 +79,7 @@ const ENTRIES_KEY = 'entries'; // Ключ для хранения данных
 
 // Чтение данных из Redis
 async function readDataFromRedis() {
+  if (!redis) throw new Error('Redis client not initialized'); // Проверка перед использованием
   try {
     console.log("--- Attempting redis.get for key:", ENTRIES_KEY); // Лог перед операцией
     const dataString = await redis.get(ENTRIES_KEY);
@@ -73,6 +97,7 @@ async function readDataFromRedis() {
 
 // Запись данных в Redis
 async function writeDataToRedis(data) {
+  if (!redis) throw new Error('Redis client not initialized'); // Проверка перед использованием
   try {
     const dataToSet = JSON.stringify(data);
     console.log("--- Attempting redis.set for key:", ENTRIES_KEY); // Лог перед операцией
@@ -89,6 +114,7 @@ async function writeDataToRedis(data) {
 
 // GET /entries - Получить все записи
 app.get('/entries', async (req, res) => {
+  if (!redis) return res.status(500).json({ message: "Redis client not initialized" });
   try {
     const data = await readDataFromRedis();
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
@@ -101,6 +127,7 @@ app.get('/entries', async (req, res) => {
 
 // POST /entries - Добавить новую запись
 app.post('/entries', async (req, res) => {
+  if (!redis) return res.status(500).json({ message: "Redis client not initialized" });
   const { departureTime, estimatedDuration } = req.body;
   if (!departureTime || typeof estimatedDuration !== 'number' || estimatedDuration <= 0) {
     return res.status(400).send('Invalid input...'); // Сообщение можно оставить
@@ -132,6 +159,7 @@ app.post('/entries', async (req, res) => {
 
 // PUT /entries/:id - Обновить запись (приход)
 app.put('/entries/:id', async (req, res) => {
+  if (!redis) return res.status(500).json({ message: "Redis client not initialized" });
   const { id } = req.params;
   const { returnTime } = req.body;
 
