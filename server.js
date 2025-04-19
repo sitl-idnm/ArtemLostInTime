@@ -54,6 +54,11 @@ app.get('/admin.html', adminAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+// <<< ДОБАВЛЯЕМ Обработчик для корневого пути /
+app.get('/', adminAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // --- Функции для работы с Vercel KV ---
 const ENTRIES_KEY = 'entries'; // Ключ для хранения данных в KV
 
