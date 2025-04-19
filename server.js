@@ -51,10 +51,6 @@ app.use(express.json()); // Для парсинга JSON тел запросов
 // Все остальные файлы будут доступны без аутентификации
 app.get('/admin.html', adminAuth);
 
-// Статические файлы (HTML, CSS, JS) - отдает файлы из текущей папки
-// Должно быть после аутентификации для admin.html, но до API-маршрутов
-app.use(express.static(__dirname));
-
 // --- Функции для работы с Vercel KV ---
 const ENTRIES_KEY = 'entries'; // Ключ для хранения данных в KV
 
