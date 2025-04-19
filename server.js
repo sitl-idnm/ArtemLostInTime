@@ -6,6 +6,12 @@ const path = require('path'); // <<< ВОЗВРАЩАЕМ path
 // const { kv } = require('@vercel/kv'); // <<< Убрали @vercel/kv
 const { Redis } = require('@upstash/redis'); // <<< Добавили @upstash/redis
 
+// <<< ЛОГИРУЕМ ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ >>>
+console.log("--- Checking Environment Variables ---");
+console.log("UPSTASH_REDIS_REST_URL exists:", !!process.env.UPSTASH_REDIS_REST_URL);
+console.log("UPSTASH_REDIS_REST_TOKEN exists:", !!process.env.UPSTASH_REDIS_REST_TOKEN);
+console.log("------------------------------------");
+
 const app = express();
 // const PORT = process.env.PORT || 3001; // <<< PORT больше не нужен, Vercel управляет этим
 // const DATA_FILE = path.join(__dirname, 'data.json'); // <<< Больше не используем файл
@@ -77,16 +83,16 @@ const ENTRIES_KEY = 'entries'; // Ключ для хранения данных
 // Чтение данных из Redis
 async function readDataFromRedis() {
   try {
+    console.log("--- Attempting redis.get for key:", ENTRIES_KEY); // Лог перед операцией
     const dataString = await redis.get(ENTRIES_KEY);
-    // Данные в Redis хранятся как строка, парсим JSON
+    console.log("--- Successfully executed redis.get. Raw dataString:", dataString); // Лог после успеха
     if (dataString) {
       return JSON.parse(dataString);
     }
-    return []; // Возвращаем пустой массив, если данных нет
+    return [];
   } catch (error) {
-    console.error("!!! Catch block entered for readDataFromRedis");
-    console.error("Error object keys (Redis Read):", Object.keys(error || {}));
-    console.error("Full error object stringified (Redis Read):", JSON.stringify(error, null, 2));
+    // <<< Упрощаем логирование ошибки
+    console.error("!!! RAW ERROR in readDataFromRedis:", error);
     throw new Error('Could not read data from Redis storage');
   }
 }
@@ -94,12 +100,13 @@ async function readDataFromRedis() {
 // Запись данных в Redis
 async function writeDataToRedis(data) {
   try {
-    // Преобразуем массив в JSON строку перед сохранением
-    await redis.set(ENTRIES_KEY, JSON.stringify(data));
+    const dataToSet = JSON.stringify(data);
+    console.log("--- Attempting redis.set for key:", ENTRIES_KEY); // Лог перед операцией
+    await redis.set(ENTRIES_KEY, dataToSet);
+    console.log("--- Successfully executed redis.set"); // Лог после успеха
   } catch (error) {
-    console.error("!!! Catch block entered for writeDataToRedis");
-    console.error("Error object keys (Redis Write):", Object.keys(error || {}));
-    console.error("Full error object stringified (Redis Write):", JSON.stringify(error, null, 2));
+    // <<< Упрощаем логирование ошибки
+    console.error("!!! RAW ERROR in writeDataToRedis:", error);
     throw new Error('Could not write data to Redis storage');
   }
 }
@@ -113,12 +120,8 @@ app.get('/entries', async (req, res) => {
     const sortedData = data.sort((a, b) => new Date(b.departureTime) - new Date(a.departureTime));
     res.json(sortedData);
   } catch (error) {
-    console.error("!!! Catch block entered for GET /entries");
-    console.error("Error object keys (GET):", Object.keys(error || {}));
-    console.error("Full error object stringified (GET):", JSON.stringify(error, null, 2));
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("!!! ERROR in GET /entries: Sending 500 -", errorMessage);
-    res.status(500).json({ message: "Could not read data from storage", details: errorMessage, originalError: error });
+    console.error("!!! RAW ERROR from GET /entries catch:", error);
+    res.status(500).json({ message: "Could not read data from storage", details: error.message || String(error) });
   }
 });
 
@@ -148,12 +151,8 @@ app.post('/entries', async (req, res) => {
       res.status(201).json(newEntry);
 
   } catch (error) {
-      console.error("!!! Catch block entered for POST /entries");
-      console.error("Error object keys (POST):", Object.keys(error || {}));
-      console.error("Full error object stringified (POST):", JSON.stringify(error, null, 2));
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("!!! ERROR in POST /entries: Sending 500 -", errorMessage);
-      res.status(500).json({ message: "Could not write data to storage", details: errorMessage, originalError: error });
+      console.error("!!! RAW ERROR from POST /entries catch:", error);
+      res.status(500).json({ message: "Could not write data to storage", details: error.message || String(error) });
   }
 });
 
@@ -200,12 +199,8 @@ app.put('/entries/:id', async (req, res) => {
 
   } catch (error) {
       const entryId = req.params.id;
-      console.error(`!!! Catch block entered for PUT /entries/${entryId}`);
-      console.error(`Error object keys (PUT ${entryId}):`, Object.keys(error || {}));
-      console.error(`Full error object stringified (PUT ${entryId}):`, JSON.stringify(error, null, 2));
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`!!! ERROR in PUT /entries/${entryId}: Sending 500 -`, errorMessage);
-      res.status(500).json({ message: `Could not update entry ${entryId}`, details: errorMessage, originalError: error });
+      console.error(`!!! RAW ERROR from PUT /entries/${entryId} catch:`, error);
+      res.status(500).json({ message: `Could not update entry ${entryId}`, details: error.message || String(error) });
   }
 });
 
