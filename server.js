@@ -49,10 +49,7 @@ app.use(express.json()); // Для парсинга JSON тел запросов
 
 // Middleware для Basic Auth - ПРИМЕНЯЕМ ТОЛЬКО К /admin.html
 // Все остальные файлы будут доступны без аутентификации
-app.get('/admin.html', adminAuth, (req, res) => {
-  // Если adminAuth пропустил (успешная аутентификация), отправляем файл
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
+app.get('/admin.html', adminAuth); // <<< УБИРАЕМ обработчик с res.sendFile, оставляем только auth
 
 // --- Функции для работы с Vercel KV ---
 const ENTRIES_KEY = 'entries'; // Ключ для хранения данных в KV
@@ -196,8 +193,8 @@ app.put('/entries/:id', async (req, res) => {
 });
 
 // --- Статические файлы ---
-// <<< ВОЗВРАЩАЕМ express.static ПОСЛЕ API-маршрутов
-app.use(express.static(__dirname));
+// <<< УБЕДИМСЯ, ЧТО express.static УДАЛЕН
+// app.use(express.static(__dirname));
 
 // --- ЭКСПОРТИРУЕМ ПРИЛОЖЕНИЕ ДЛЯ VERCEL ---
 module.exports = app;
