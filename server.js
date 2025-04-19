@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 // const bodyParser = require('body-parser'); // Необязательно для новых Express
-// const path = require('path'); // <<< Убрали path
+const path = require('path'); // <<< ВОЗВРАЩАЕМ path
 // const basicAuth = require('express-basic-auth'); // <<< Убрали basic-auth
 // const { kv } = require('@vercel/kv'); // <<< Убрали @vercel/kv
 const { Redis } = require('@upstash/redis'); // <<< Добавили @upstash/redis
@@ -55,10 +55,16 @@ app.use(express.json()); // Для парсинга JSON тел запросов
 //   res.sendFile(path.join(__dirname, 'admin.html'));
 // });
 
-// <<< ДОБАВЛЯЕМ Обработчик для корневого пути /
-// app.get('/', adminAuth, (req, res) => {
-//   res.sendFile(path.join(__dirname, 'admin.html'));
-// });
+// --- Обработчики для статики (без аутентификации) ---
+// Обработчик для корневого пути /
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// <<< Добавляем обработчик для /admin.html
+app.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
 
 // --- Инициализация Upstash Redis ---
 // Ожидает UPSTASH_REDIS_REST_URL и UPSTASH_REDIS_REST_TOKEN в переменных окружения
